@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppstoreOutlined, CalendarOutlined, CameraOutlined, CheckCircleOutlined, ClockCircleOutlined, EnvironmentOutlined, HistoryOutlined, LogoutOutlined, RightOutlined, UserOutlined, ReloadOutlined } from '@ant-design/icons';
 import { request, session, setSession, logout, type Session, type Attendance, type Assignment } from './api';
+import { rememberedUsername, rememberLogin } from './remember';
 import './styles.css';
 
 type Tab = 'home' | 'events' | 'attendance' | 'profile';
@@ -24,12 +25,13 @@ function Auth({onSuccess}:{onSuccess:(value:Session)=>void}) {
   const [register,setRegister]=useState(false); const [done,setDone]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false);
   async function submit(e:FormEvent<HTMLFormElement>) { e.preventDefault(); setError(''); setBusy(true); const form=new FormData(e.currentTarget);
     try { if(register) { const result=await request<{username:string}>('/auth/register',{method:'POST',public:true,body:{fullName:form.get('fullName'),phone:form.get('phone'),email:form.get('email'),password:form.get('password')}}); setDone(result.username); }
-      else { const result=await request<Session>('/auth/login',{method:'POST',public:true,body:{identifier:form.get('identifier'),password:form.get('password')}}); setSession(result); onSuccess(result); }
+      else { const identifier=String(form.get('identifier') || ''); const password=String(form.get('password') || ''); const result=await request<Session>('/auth/login',{method:'POST',public:true,body:{identifier,password}}); rememberLogin(identifier,password,form.get('remember')==='on'); setSession(result); onSuccess(result); }
     } catch(err) {setError(err instanceof Error ? err.message : 'Không thể kết nối máy chủ.');} finally {setBusy(false);} }
   if(done) return <main className="auth"><div className="auth-brand"><span className="brand-mark">t</span><b>tred<span>crew</span></b></div><div className="success-icon"><CheckCircleOutlined/></div><h1>Đăng ký thành công</h1><p>Tên đăng nhập của bạn là <strong>{done}</strong>. Tài khoản đang chờ quản trị viên phê duyệt và tạo hồ sơ nhân sự.</p><button className="primary" onClick={()=>{setDone('');setRegister(false)}}>Quay lại đăng nhập</button></main>;
   return <main className="auth"><div className="auth-brand"><span className="brand-mark">t</span><b>tred<span>crew</span></b></div><div className="auth-intro"><div className="eyebrow">TRED CREW · DÀNH CHO NHÂN SỰ</div><h1>{register?'Tạo tài khoản':'Chào mừng trở lại'}</h1><p>{register?'Điền thông tin của bạn để tham gia đội ngũ.':'Đăng nhập để theo dõi công việc và chấm công mỗi ngày.'}</p></div><form onSubmit={submit} className="auth-form">
     {register ? <><label>Họ và tên<input name="fullName" autoComplete="name" placeholder="Nhập họ và tên" required maxLength={150}/></label><label>Số điện thoại<input name="phone" type="tel" autoComplete="tel" placeholder="Nhập số điện thoại" required minLength={6} maxLength={30} pattern="[+0-9 ()-]+"/></label><label>Email<input name="email" type="email" autoComplete="email" placeholder="ban@example.com" required/></label></> : <label>Email hoặc tên đăng nhập<input name="identifier" autoComplete="username" placeholder="Nhập email hoặc tên đăng nhập" required/></label>}
     <label>Mật khẩu<input name="password" type="password" autoComplete={register?'new-password':'current-password'} placeholder={register?'Tối thiểu 8 ký tự':'Nhập mật khẩu'} required minLength={register?8:1} maxLength={128}/></label>
+    {!register&&<label className="remember-login"><input name="remember" type="checkbox" defaultChecked={!!rememberedUsername()}/><span>Ghi nhớ mật khẩu</span></label>}
     {error&&<div className="notice error" role="alert">{error}</div>}<button className="primary" disabled={busy}>{busy?'Đang xử lý…':register?'Đăng ký':'Đăng nhập'}</button></form><p className="auth-switch">{register?'Đã có tài khoản?':'Chưa có tài khoản?'} <button onClick={()=>{setRegister(!register);setError('')}}>{register?'Đăng nhập':'Đăng ký ngay'}</button></p><div className="auth-foot">Mọi thứ bạn cần cho một ngày làm việc tốt hơn.</div></main>;
 }
 
