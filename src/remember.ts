@@ -9,7 +9,7 @@ export function rememberedUsername(): string {
 }
 
 /** Store only the username locally; password storage belongs to the browser. */
-export function rememberLogin(identifier: string, password: string, remember: boolean): void {
+export async function rememberLogin(identifier: string, password: string, remember: boolean): Promise<boolean> {
   try {
     if (remember) localStorage.setItem(usernameKey, identifier);
     else localStorage.removeItem(usernameKey);
@@ -17,17 +17,17 @@ export function rememberLogin(identifier: string, password: string, remember: bo
     // Storage can be disabled by the browser.
   }
 
-  if (!remember || !window.isSecureContext || !navigator.credentials?.store) return;
+  if (!remember || !window.isSecureContext || !navigator.credentials?.store) return false;
   const PasswordCredential = (window as Window & {
     PasswordCredential?: new (data: { id: string; password: string }) => Credential;
   }).PasswordCredential;
-  if (!PasswordCredential) return;
+  if (!PasswordCredential) return false;
 
   try {
-    void navigator.credentials.store(new PasswordCredential({ id: identifier, password })).catch(() => {
-      // The browser or user may decline saving credentials.
-    });
+    await navigator.credentials.store(new PasswordCredential({ id: identifier, password }));
+    return true;
   } catch {
     // Password managers are optional and differ between browsers.
+    return false;
   }
 }
